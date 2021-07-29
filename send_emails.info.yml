@@ -1,0 +1,10 @@
+name: Send Emails
+description: 'Send custom emails'
+package: Other
+
+type: module
+core: 8.x
+core_version_requirement: ^8 || ^9
+
+dependencies:
+ - auto_login_url

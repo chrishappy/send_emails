@@ -1,0 +1,9 @@
+send_emails.email_settings_form:  
+  path: '/admin/config/send_emails/emails'
+  defaults:  
+    _form: '\Drupal\send_emails\Form\EmailSettings'  
+    _title: 'Send Emails Email Settings'  
+  requirements:  
+    _permission: 'edit send_emails emails'  
+  options:  
+    _admin_route: TRUE

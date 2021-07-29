@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * @file
+ * av_auction.module
+ * 
+ * -------------------------------------------------
+ * `node.field_current_bid` must be always filled.
+ * 
+ *  Future:
+ *   - Should this be transfered to a service?
+ *   - Should validation be based on previous comment? Since increment is dynamic and accessible
+ */ 
+
+use Drupal\Core\Form\FormStateInterface;
+
+// Mainly for _av_auction_validate_bid()
+use Drupal\Core\Entity\ContentEntityForm;
+use Drupal\node\Entity\Node;
+use Drupal\user\Entity\User;
+
+// For _av_auction_update_bid
+use Drupal\Core\Entity\EntityInterface;
+
+// For av_auction_form_alter, av_auction_views_pre_view
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_mail()
+ */
+function send_emails_mail($key, &$message, $params) {
+    
+    if (substr($key, 0, strlen('send_emails.template.')) == 'send_emails.template.') {        
+        $message['subject'] = $params['message']['subject'];
+        $message['body'] = array_merge($message['body'], $params['message']['body']);
+        $message['headers'] = $params['message']['headers'];
+        $message['params'] = $params['message']['params'];
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

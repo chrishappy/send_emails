@@ -1,0 +1,6 @@
+send_emails.email_settings_form:  
+  title: 'Send Emails Configuation'  
+  route_name: send_emails.email_settings_form 
+  description: 'Set the emails'  
+  parent: system.admin_config_system   
+  weight: 5

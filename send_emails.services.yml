@@ -1,0 +1,4 @@
+services:
+  send_emails.mail:
+    class: Drupal\send_emails\EmailApi
+    arguments: ["@entity_type.manager", "@plugin.manager.mail", "@config.factory", "@logger.factory", "@database", "@date.formatter"]
