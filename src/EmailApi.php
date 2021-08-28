@@ -47,6 +47,16 @@ class EmailApi {
   private $siteEmail;
 
   /**
+   * @property string Store the manually set body template
+   */
+  private $bodyTemplateOverride;
+
+  /**
+   * @property string Store the manually set subject template
+   */
+  private $subjectTemplateOverride;
+
+  /**
    * Class constructor.
    */
   public function __construct(EntityTypeManager $entity_type_manager, MailManager $mail_manager, ConfigFactory $config, LoggerChannelFactoryInterface $logger, Connection $connection, DateFormatter $dateFormatter) {
@@ -219,7 +229,7 @@ class EmailApi {
       'name' => $user->getDisplayName(),
       'email' => $user->getEmail(),
     ];
-    $returnResult = $this->notifyEmail($to, $template, $data, $replyTo, $data);
+    $returnResult = $this->notifyEmail($userData, $template, $data, $replyTo, $data);
 
     return $returnResult;
   }
@@ -236,7 +246,7 @@ class EmailApi {
    * 
    * @return boolean | array
    */
-  public function notifyEmail(array $userData, string $template, string $destination = '', string $replyTo = '', array $options = []) {
+  public function notifyEmail(array $userData, string $template, string $destination = '', string $replyTo = '', array $data = []) {
 
     if (!isset($userData['name'], $userData['email'])) {
       throw new \Exception('User data does not contain "name" or "email" key.');
@@ -323,25 +333,12 @@ class EmailApi {
     $data['site_name'] = $data['site_name'] ?? $this->siteConfig->get('name');
     $data['site_front'] = Url::fromRoute('<front>');
 
-    // Render Subject
-    $subjectData = [
-      '#type' => 'inline_template',
-      '#template' => $this->emailConfig->get('emails.' . $template . '.subject'),
-      '#context' => $data,
-    ];
-    $subject = \Drupal::service('renderer')->renderPlain($subjectData);
-
-    // Add body tags to template & render
-    $bodyTemplate = '<body style="font-size: 14px; color: #000;">' . $this->emailConfig->get('emails.' . $template . '.body') . '</body>';
-    $bodyData = [
-      '#type' => 'inline_template',
-      '#template' => $bodyTemplate,
-      '#context' => $data,
-    ];
-    $body = \Drupal::service('renderer')->renderPlain($bodyData);
+    // Format subject & body
+    $subject = $this->getSubjectFromTemplate($template, $data);
+    $body = $this->getBodyFromTemplate($template, $data);
 
     // Set the message
-     $message['to'] = $to;
+    $message['to'] = $to;
     $message['subject'] = $subject;
     $message['body'][] = $body;
     $message['headers'] = $this->getHeaders($replyTo);
@@ -361,6 +358,65 @@ class EmailApi {
     
     return $result;
 
+  }
+
+  /**
+   * Allow the body template to be override
+   * @TODO Refactor to reduce the number of parameters passed down functions
+   */
+  public function overrideBodyTemplate(string $bodyTemplateOverride) {
+    $this->bodyTemplateOverride = $bodyTemplateOverride;
+  }
+
+  /**
+   * Format the Template & allow for overrides
+   */
+  private function getBodyFromTemplate(string $template, array $data) {
+    $templateText = '';
+    if (!empty($this->bodyTemplateOverride)) {
+      $templateText = $this->bodyTemplateOverride;
+    }
+    else {
+      $templateText = $this->emailConfig->get('emails.' . $template . '.body');
+    }
+
+    $templateText = '<body style="font-size: 14px; color: #000;">' . $templateText. '</body>';
+    $render = [
+      '#type' => 'inline_template',
+      '#template' => $templateText,
+      '#context' => $data,
+    ];
+
+    return \Drupal::service('renderer')->renderPlain($render);;
+  }
+
+  /**
+   * Allow the subject template to be override
+   * @TODO Refactor to reduce the number of parameters passed down functions
+   */
+  public function overrideSubjectTemplate(string $subjectTemplateOverride) {
+    $this->subjectTemplateOverride = $subjectTemplateOverride;
+  }
+
+  /**
+   * Format the Template & allow for overrides
+   */
+  private function getSubjectFromTemplate(string $template, array $data) {
+    $templateText = '';
+    if (!empty($this->subjectTemplateOverride)) {
+      $templateText = $this->subjectTemplateOverride;
+    }
+    else {
+      $templateText = $this->emailConfig->get('emails.' . $template . '.subject');
+    }
+
+    $render = [
+      '#type' => 'inline_template',
+      '#template' => $templateText,
+      '#context' => $data,
+    ];
+
+    return \Drupal::service('renderer')->renderPlain($render);;
   }
   
   /**
