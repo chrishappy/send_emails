@@ -99,9 +99,7 @@ class EmailSettings extends ConfigFormBase  {
      */
     
     $emailDefinitions = $config->get('__emails_definitions') ?? [];
-    
-        $this->messenger()->addMessage($this->t('@key.', ['@key' => json_encode($config->get('emails.director_private_notes'))]));
-    
+        
     foreach ($emailDefinitions as $definition) {
       
       $definitionName = $definition[0];

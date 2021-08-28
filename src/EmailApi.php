@@ -86,7 +86,7 @@ class EmailApi {
         'roles' => $roleToNotify,
       ]);
     
-    return $this->notifyUsers($users, $template, $destination, $replyTo);
+    return $this->notifyByUsers($users, $template, $destination, $replyTo);
   }
   
   /**
@@ -97,7 +97,7 @@ class EmailApi {
    * @param $destination the path to redirect to after logging in
    * @param $replyTo the email to send emails when replying
    */
-  public function notifyUsers(array $users, string $template, string $destination = '', $replyTo = '') {
+  public function notifyByUsers(array $users, string $template, string $destination = '', $replyTo = '') {
     $result = true;
     
     foreach ($users as $user){
@@ -120,6 +120,61 @@ class EmailApi {
     
     return $result;
   }
+  
+  /**
+   * Notify Users by providing an array of users
+   * 
+   * @param $details ['name' => '', 'email' => ''] the information to send emails to
+   * @param $template string the template to send emails to
+   * @param $destination the path to redirect to after logging in
+   * @param $replyTo the email to send emails when replying
+   * @param $data data that can be accessed in the TWIG template
+   */
+  public function notifyByDetails(array $emailDetails, string $template, string $destination = '', $replyTo = '', array $data = []) {
+    $result = true;
+
+    $dataErrors = [];
+    $emailErrors = [];
+    
+    foreach ($emailDetails as $emailDetail) {
+        if (!isset($emailDetail['name'], $emailDetail['email'])) {
+          $result = false;
+          $dataErrors[] = $emailDetail;
+        }
+        else {
+          $tries = 0;
+          $emailResult = false;
+        
+          while ($tries < 5 && !$emailResult) {
+              $emailResult = $this->notifyEmail($emailDetail, $template, $destination, $replyTo, $data);
+              $tries++;
+          }
+
+          if (!$emailResult) {
+            $result = false;
+            $emailErrors[] = $emailDetail['name']  . ' <' . $emailDetail['email'] .'>';
+          }
+        }
+
+    }
+
+    if (!empty($dataErrors)) {
+      $this->logger->error(
+          t('Malformed data when sending %template: @data', 
+          ['%template' => $template, '@data' => json_encode($dataErrors)]));
+    }
+
+    if (!empty($emailErrors)) {
+      \Drupal::messenger()->addError(
+          t('Unable to notify %count users: %userList', 
+          ['%count' => count($emailErrors), '%userList' => implode(',', $emailErrors)]));
+      $this->logger->error(
+          t('Failed emails when sending %template: @data', 
+          ['%template' => $template, '@data' => json_encode($emailErrors)]));
+    }
+    
+    return $result;
+  }
 
   /**
    * Public function to notify directors/contractors if field_notify is selected
@@ -128,10 +183,11 @@ class EmailApi {
    * @param $template string the template to send emails to
    * @param $destination the path to redirect to after logging in
    * @param $replyTo the email to send emails when replying
-   
+   * @param $data data that can be accessed in the TWIG template
+   *    
    * @return boolean | array
    */
-  public function notifyUser($user, string $template, string $destination = '', $replyTo = '') {
+  public function notifyUser($userData, string $template, string $destination = '', string $replyTo = '', array $data = []) {
 
     // Load User
     if ( !($user instanceof UserInterface) ) {
@@ -144,7 +200,48 @@ class EmailApi {
         return false;
       }
     }
-    
+
+    // Auto login link to auction item
+    $this->aluService = \Drupal::service('auto_login_url.create');
+    $destinationTrimmed = ltrim($destination, '/'); // Remove first slash so URL is local, so trusted
+    $autoLoginLink = $this->aluService->create($user->id(), $destinationTrimmed, TRUE);
+
+    // Prepare Body Data
+    $data = [
+        'auto_login_link' => $autoLoginLink,
+        'misc' => [
+          'userEntity' => $user,
+        ],
+    ];
+
+    // Prepare Email
+    $userData = [
+      'name' => $user->getDisplayName(),
+      'email' => $user->getEmail(),
+    ];
+    $returnResult = $this->notifyEmail($to, $template, $data, $replyTo, $data);
+
+    return $returnResult;
+  }
+
+  /**
+   * Public function to notify directors/contractors if field_notify is selected
+   
+   * @param $userData ['name' => '', 'email' => ''] the information to send emails to
+   * @param $template string the template to send emails to
+   * @param $destination the path to redirect to after logging in
+   * @param $replyTo the email to send emails when replying
+   * 
+   * @throws \Exception when $userData is not properly formatted
+   * 
+   * @return boolean | array
+   */
+  public function notifyEmail(array $userData, string $template, string $destination = '', string $replyTo = '', array $options = []) {
+
+    if (!isset($userData['name'], $userData['email'])) {
+      throw new \Exception('User data does not contain "name" or "email" key.');
+    }
+
     // Set default data
     if (empty($destination)) {
       $destination = $this->emailConfig->get('emails.' . $template . '.destination') ?? '/';
@@ -154,25 +251,18 @@ class EmailApi {
       $replyTo = $this->emailConfig->get('emails.' . $template . '.replyTo') ?? '';
     }
 
-    // Misc data
-    $misc = [];
-    $misc['time-raw'] = $this->time;
-    $misc['userEntity'] = $user;
-
-    // Auto login link to auction item
-    $this->aluService = \Drupal::service('auto_login_url.create');
-    $destinationTrimmed = ltrim($destination, '/'); // Remove first slash so URL is local, so trusted
-    $autoLoginLink = $this->aluService->create($user->id(), $destinationTrimmed, TRUE);
+    // Prepare link to destination
+    if (substr($destination,0,1) === '/') {
+      $destination = \Drupal::request()->getSchemeAndHttpHost() . $destination;
+    }
 
     // Prepare Body Data
-    $data = [
-        'username' => $user->getDisplayName(),
-        'auto_login_link' => $autoLoginLink,
-        'misc' => $misc,
-    ];
+    $data['name'] = $userData['name'];
+    $data['destination_link'] = $destination;
+    $data['misc']['time-raw'] = $this->time;
 
     // Prepare Email
-    $to = $user->getEmail();
+    $to = $userData['email'];
     $returnResult = $this->sendTemplate($to, $template, $data, $replyTo);
 
     return $returnResult;
