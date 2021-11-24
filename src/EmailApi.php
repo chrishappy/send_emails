@@ -197,7 +197,7 @@ class EmailApi {
    *    
    * @return boolean | array
    */
-  public function notifyUser($userData, string $template, string $destination = '', string $replyTo = '', array $data = []) {
+  public function notifyUser($user, string $template, string $destination = '', string $replyTo = '', array $data = [], string $alternativeEmail = '') {
 
     // Load User
     if ( !($user instanceof UserInterface) ) {
@@ -222,14 +222,14 @@ class EmailApi {
         'misc' => [
           'userEntity' => $user,
         ],
-    ];
+    ] + $data;
 
     // Prepare Email
     $userData = [
       'name' => $user->getDisplayName(),
-      'email' => $user->getEmail(),
+      'email' => $alternativeEmail === '' ? $user->getEmail() : $alternativeEmail,
     ];
-    $returnResult = $this->notifyEmail($userData, $template, $data, $replyTo, $data);
+    $returnResult = $this->notifyEmail($userData, $template, $destination, $replyTo, $data);
 
     return $returnResult;
   }
@@ -352,7 +352,7 @@ class EmailApi {
     $to = $to;
     $params['message'] = $message;
     $langcode = \Drupal::currentUser()->getPreferredLangcode();
-    $send = true;
+    $send = TRUE;
 
     $result = $mailManager->mail($module, $key, $to, $langcode, $params, NULL, $send);
     

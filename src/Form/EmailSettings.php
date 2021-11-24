@@ -129,9 +129,9 @@ class EmailSettings extends ConfigFormBase  {
       ];
       
       $twigVariables = [
-        'username',
+        'name (username)',
         'time',
-        'auto_login_url',
+        'auto_login_link',
         'site_name',
         'site_front',
         'misc.time-raw',
@@ -186,6 +186,7 @@ class EmailSettings extends ConfigFormBase  {
       '#type' => 'details',
       '#title' => $this->t('Email Definitions'),
       '#open' => TRUE,
+      '#access' => \Drupal::currentUser()->hasPermission('create send_emails emails'),
     ];
     
     $form['emails_definitions']['__emails_definitions'] = [
@@ -270,19 +271,22 @@ class EmailSettings extends ConfigFormBase  {
     $values = $form_state->getValues();
     $config = $this->config($this->formConfig);
     
-    // Save old definitions (to detect which emails to delete)
-    $oldDefinitionKeys = array_column($config->get('__emails_definitions'), 0);
-    
-    // Set the old configuations
-    $definitionsRaw = trim($values['__emails_definitions']);
-    $config->set('__emails_definitions_raw', $definitionsRaw);
-    
-    // Process the definitions
-    $definitions = empty($definitionsRaw) ? [] : explode("\n", $definitionsRaw);
-    foreach ($definitions as &$definition) {
-      $definition = array_map('trim', explode('|', $definition, 2));
+    // Only update definitions if user have permission
+    if (\Drupal::currentUser()->hasPermission('create send_emails emails')) {
+      // Save old definitions (to detect which emails to delete)
+      $oldDefinitionKeys = array_column($config->get('__emails_definitions'), 0);
+      
+      // Set the old configuations
+      $definitionsRaw = trim($values['__emails_definitions']);
+      $config->set('__emails_definitions_raw', $definitionsRaw);
+      
+      // Process the definitions
+      $definitions = empty($definitionsRaw) ? [] : explode("\n", $definitionsRaw);
+      foreach ($definitions as &$definition) {
+        $definition = array_map('trim', explode('|', $definition, 2));
+      }
+      $config->set('__emails_definitions', $definitions);
     }
-    $config->set('__emails_definitions', $definitions);
     
     // Set email config
     foreach ($oldDefinitionKeys as $key) {
