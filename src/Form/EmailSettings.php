@@ -103,15 +103,15 @@ class EmailSettings extends ConfigFormBase  {
     foreach ($emailDefinitions as $definition) {
       
       $definitionName = $definition[0];
-      $definitionBody = $definition[1];
+      $definitionDescription = $definition[1];
       
       $emailConfig = $config->get('emails.' . $definitionName);
     
       
       $form['emails'][$definitionName] = [
         '#type' => 'details',
-        '#title' => $this->t('@name', ['@name' => $definitionName]),
-        '#description' => $this->t('@description', ['@description' => $definitionBody]),
+        '#title' => $this->t('@name', ['@name' => str_replace('_', ' ', $definitionName)]),
+        '#description' => $this->t('@description', ['@description' => $definitionDescription]),
         '#open' => TRUE,
         '#tree' => TRUE,
       ];
@@ -270,12 +270,12 @@ class EmailSettings extends ConfigFormBase  {
 
     $values = $form_state->getValues();
     $config = $this->config($this->formConfig);
+
+    // Save old definitions (to detect which emails to delete)
+    $oldDefinitionKeys = array_column($config->get('__emails_definitions'), 0);
     
     // Only update definitions if user have permission
     if (\Drupal::currentUser()->hasPermission('create send_emails emails')) {
-      // Save old definitions (to detect which emails to delete)
-      $oldDefinitionKeys = array_column($config->get('__emails_definitions'), 0);
-      
       // Set the old configuations
       $definitionsRaw = trim($values['__emails_definitions']);
       $config->set('__emails_definitions_raw', $definitionsRaw);

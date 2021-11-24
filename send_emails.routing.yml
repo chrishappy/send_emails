@@ -7,3 +7,13 @@ send_emails.email_settings_form:
     _permission: 'edit send_emails emails'  
   options:  
     _admin_route: TRUE
+
+send_emails.minimal_email_settings_form:  
+  path: '/admin/config/send_emails/emails/{starts_with}'
+  defaults:  
+    _form: '\Drupal\send_emails\Form\MinimalEmailSettings'  
+    _title: 'Minimal Email Edit Form'
+  requirements:  
+    _permission: 'edit send_emails emails'  
+  options:  
+    _admin_route: TRUE
