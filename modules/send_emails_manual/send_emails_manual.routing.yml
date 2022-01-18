@@ -1,3 +1,4 @@
+# Send emails by user role
 send_emails_manual.send_by_role:  
   path: '/admin/config/send_emails/manual/{email_to_send}'
   defaults:  
