@@ -21,9 +21,11 @@ use Drupal\Core\Cache\CacheBackendInterface;
 class MinimalEmailSettings extends EmailSettings  {
 
   /**
-   * Only show emails that begin with the substring 'starts_with'
+   * Only show emails that begin with the "starts_with" substring.
+   * Use 'all': to disable
    */
   protected $starts_with;
+  
   /**
    * {@inheritdoc}
    */
