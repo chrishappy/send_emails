@@ -1,0 +1,10 @@
+send_emails_manual.send_by_role:  
+  path: '/admin/config/send_emails/manual/{email_to_send}'
+  defaults:  
+    _form: '\Drupal\send_emails_manual\Form\EmailManualSendByRole'  
+    _title: 'Manually Send Emails to User of Role'  
+  requirements:  
+    _permission: 'manual send_emails by role'
+    email_to_send: '^\w+$'
+  options:  
+    _admin_route: TRUE

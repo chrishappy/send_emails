@@ -1,0 +1,10 @@
+name: Send Emails - Manual
+description: 'Manually send custom emails created through Send Email'
+package: Other
+
+type: module
+core_version_requirement: ^8.9 || ^9
+
+dependencies:
+ - auto_login_url
+ - send_emails
