@@ -44,7 +44,7 @@ class EmailApi {
   /**
    * Stored Options
    */
-  private $siteEmail;
+  // private $siteEmail;
 
   /**
    * @property string Store the manually set body template

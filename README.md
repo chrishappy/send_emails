@@ -25,8 +25,8 @@ function custom_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
 
 
           \Drupal::messenger()->addMessage(
-              t('@roles have been notified', 
-              ['@role' => ucfirst($notificationRole)])
+              t('%role have been notified', 
+              ['%role' => ucfirst($notificationRole)])
           );
 
       }

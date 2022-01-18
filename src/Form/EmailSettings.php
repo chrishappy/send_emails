@@ -14,11 +14,18 @@ use Drupal\Core\Datetime\DrupalDateTime;
 
 // Dependency Injection
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\av_auction\AuctionApi;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Datetime\DateFormatter;
 use Drupal\Core\Cache\CacheBackendInterface;
 
 class EmailSettings extends ConfigFormBase  {
+  /**
+   * An instance of the entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
 
   /**
     * @var \Drupal\Core\Datetime\DateFormatter $dateFormatter
@@ -36,31 +43,32 @@ class EmailSettings extends ConfigFormBase  {
    * @var array
    */
   protected $editableConfig = [];
-  
+
   /**
-    * Constructs a PerformanceForm object.
-    *
-    * @param \Drupal\av_auction\AuctionApi $auctionApi
-    *   The API for the AV Auction
-    */
-  public function __construct(DateFormatter $dateFormatter, CacheBackendInterface $cacheRender){
+   * {@inheritdoc}
+   */
+  public function __construct(ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entityTypeManager, DateFormatter $dateFormatter, CacheBackendInterface $cacheRender) {
+    $this->entityTypeManager = $entityTypeManager;
     $this->dateFormatter = $dateFormatter;
     $this->cacheRender = $cacheRender;
 
     $this->formConfig = 'send_emails.settings';
     $this->editableConfig[] = $this->formConfig;
+    parent::__construct($config_factory);
   }
 
   /**
-    * {@inheritdoc}
-    */
+   * {@inheritdoc}
+   */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('config.factory'),
+      $container->get('entity_type.manager'),
       $container->get('date.formatter'),
       $container->get('cache.render')
     );
   }
-  
+
   /**  
    * {@inheritdoc}  
    */  
@@ -129,7 +137,7 @@ class EmailSettings extends ConfigFormBase  {
       ];
       
       $twigVariables = [
-        'name (username)',
+        'name (e.g. username)',
         'time',
         'auto_login_link',
         'site_name',
@@ -139,9 +147,9 @@ class EmailSettings extends ConfigFormBase  {
       ];
       
       $defaultBody = 
-        "<p>Hi {{ username }},</p>".
+        "<p>Hi {{ name }},</p>".
         
-        "<p>You are receiving this email because a page has been added or updated on {{ site_name }}.</p>".
+        "<p>You are receiving this email because a page has been added or updated on {{ site_name }}.</p>".
         
         "<p>To view this page, please click on the following auto-login link (valid for XX hours):<br/>".
         "{{auto_login_link}}</p>".
@@ -220,7 +228,7 @@ class EmailSettings extends ConfigFormBase  {
     
     // Check the email definitions
     $definitions = [];
-    $definitionsRaw = trim($values['__emails_definitions']);
+    $definitionsRaw = trim($values['__emails_definitions'] ?? '');
     
     if (!empty($definitionsRaw)) {
       $explodedDefinitions = explode("\n", $definitionsRaw);
@@ -273,36 +281,48 @@ class EmailSettings extends ConfigFormBase  {
 
     // Save old definitions (to detect which emails to delete)
     $oldDefinitionKeys = array_column($config->get('__emails_definitions'), 0);
-    
-    // Only update definitions if user have permission
-    if (\Drupal::currentUser()->hasPermission('create send_emails emails')) {
-      // Set the old configuations
-      $definitionsRaw = trim($values['__emails_definitions']);
-      $config->set('__emails_definitions_raw', $definitionsRaw);
-      
-      // Process the definitions
-      $definitions = empty($definitionsRaw) ? [] : explode("\n", $definitionsRaw);
-      foreach ($definitions as &$definition) {
-        $definition = array_map('trim', explode('|', $definition, 2));
+
+    // This field might be unset by child classes extending this form
+    if (isset($values['__emails_definitions'])) {
+      // Only update definitions if user have permission
+      if (\Drupal::currentUser()->hasPermission('create send_emails emails')) {
+        // Set the old configuations
+        $definitionsRaw = trim($values['__emails_definitions']);
+        $config->set('__emails_definitions_raw', $definitionsRaw);
+        
+        // Process the definitions
+        $definitions = empty($definitionsRaw) ? [] : explode("\n", $definitionsRaw);
+        foreach ($definitions as &$definition) {
+          $definition = array_map('trim', explode('|', $definition, 2));
+        }
+        $config->set('__emails_definitions', $definitions);
       }
-      $config->set('__emails_definitions', $definitions);
     }
     
     // Set email config
     foreach ($oldDefinitionKeys as $key) {
-      $value = $values[$key];
+      $value = $values[$key] ?? false;
       
-      if ( is_array($value) && isset($value['subject'], $value['body'], $value['body']['value'], $value['destination']) ) {
+      // Some email definitions might be unset by child classes extending this form
+      if (!$value) {  continue;  }
+
+      if ( is_array($value) && isset($value['subject'], $value['body'], $value['body']['value'], $value['destination'], $value['replyTo']) ) {
         $config->set('emails.' . $key . '.subject', $value['subject']);
-        $config->set('emails.' . $key . '.body', $value['body']['value']);
-        $config->set('emails.' . $key . '.destination', $value['destination']);
         $config->set('emails.' . $key . '.replyTo', $value['replyTo']);
+
+        // Process the destination
+        $processedDestination = ltrim(trim($value['destination']), '/');
+        $config->set('emails.' . $key . '.destination', $processedDestination);
+
+        // Fix &nbsp in twig variables
+        $processedBody = preg_replace('/(?:({{)(?:&nbsp;| )+|(?:&nbsp;| )+(}}))/m', '$1 $2', $value['body']['value']);
+        $config->set('emails.' . $key . '.body', $processedBody);
       }
       else {
-        $this->messenger()->addError('Email with @key is not formed properly. Value: @value', [
-          '@key' => $key,
+        $this->messenger()->addError($this->t('Email with %key is not formed properly. Value: @value', [
+          '%key' => $key,
           '@value' => json_encode($value, JSON_PRETTY_PRINT|JSON_HEX_QUOT|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS)
-        ]);
+        ]));
       }
     }
     
