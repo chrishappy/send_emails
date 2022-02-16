@@ -80,9 +80,9 @@ class EmailApi {
   }
   
   /**
-   * Notify Users by providing an array of users
+   * Notify active users with a role
    * 
-   * @param $users UserInterface[] the users to send emails to
+   * @param $roleToNotify string the machine name of the role users must have to receive an email
    * @param $template string the template to send emails to
    * @param $destination the path to redirect to after logging in
    * @param $replyTo the email to send emails when replying
@@ -123,8 +123,8 @@ class EmailApi {
           $result = false;
           \Drupal::messenger()->addError(
               t('Unable to notify %user &lt;%email&gt; after @num tries', 
-              ['%user' => $user->getUsername(), '%email' => $user->getEmail(), '@num' => $tries])
-          );      
+              ['%user' => $user->getAccountName(), '%email' => $user->getEmail(), '@num' => $tries])
+          );
         }
     }
     
@@ -187,17 +187,18 @@ class EmailApi {
   }
 
   /**
-   * Public function to notify directors/contractors if field_notify is selected
+   * Public function to notify a single user by entity or id
    
-   * @param $users UserInterface[] the users to send emails to
+   * @param $user UserInterface|int the user entity or user id to send emails to
    * @param $template string the template to send emails to
    * @param $destination the path to redirect to after logging in
    * @param $replyTo the email to send emails when replying
    * @param $data data that can be accessed in the TWIG template
+   * @param $toEmail the email to send to
    *    
    * @return boolean | array
    */
-  public function notifyUser($user, string $template, string $destination = '', string $replyTo = '', array $data = [], string $alternativeEmail = '') {
+  public function notifyUser($user, string $template, string $destination = '', string $replyTo = '', array $data = [], string $toEmail = '') {
 
     // Load User
     if ( !($user instanceof UserInterface) ) {
@@ -227,15 +228,25 @@ class EmailApi {
     // Prepare Email
     $userData = [
       'name' => $user->getDisplayName(),
-      'email' => $alternativeEmail === '' ? $user->getEmail() : $alternativeEmail,
+      'email' => $toEmail === '' ? $user->getEmail() : $toEmail,
     ];
-    $returnResult = $this->notifyEmail($userData, $template, $destination, $replyTo, $data);
+
+    if (empty($userData['email'])) {
+      \Drupal::messenger()->addWarning(
+          t('Unable to notify <a href="@userLink">%user</a> because the user does not have an email', 
+          ['%user' => $user->getDisplayName(), '@userLink' => $user->toUrl('edit-form')->toString()])
+      );
+      return false;
+    }
+    else {
+      $returnResult = $this->notifyEmail($userData, $template, $destination, $replyTo, $data);
+    }
 
     return $returnResult;
   }
 
   /**
-   * Public function to notify directors/contractors if field_notify is selected
+   * Public function to notify using a name and email
    
    * @param $userData ['name' => '', 'email' => ''] the information to send emails to
    * @param $template string the template to send emails to

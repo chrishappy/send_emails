@@ -26,7 +26,7 @@ class EmailManualSendByRole extends EmailSettings  {
    *
    * @var array
    */
-  protected $userRoles = NULL;
+  protected $userRolesList = NULL;
 
   /**
    * An instance of the entity type manager.
@@ -122,7 +122,6 @@ class EmailManualSendByRole extends EmailSettings  {
     ];
 
     $form['actions']['submit']['#value'] = $this->t('Send Emails Now');
-    $form['actions']['submit']['#button_type'] = 'primary';
     $form['actions']['submit']['#name'] = 'submit__send_now'; // TODO: Make constant
     
     // Create Draft Button
@@ -133,6 +132,8 @@ class EmailManualSendByRole extends EmailSettings  {
       '#value' => $this->t('Save Draft'),
       '#name' => 'submit__save_draft', // TODO: Make constant
       '#limit_validation_errors' => [],
+      '#button_type' => 'primary',
+      '#weight' => -10, // Move before submit button
       '#ajax' => [
         'callback' => [$this, 'ajaxSubmitForm'],
         'wrapper' => 'send-emails-manual-send-by-role-wrapper',
@@ -163,31 +164,43 @@ class EmailManualSendByRole extends EmailSettings  {
         $replyTo = $form_state->getValue([$this->email_to_send, 'replyTo']);
 
         if (!empty($notificationRoles)) {
-          $userRoles = $this->getUserRoles();
+          $userRolesList = $this->getUserRoles();
           $userRolesSuccess = [];
           $userRolesFailed = [];
 
-          foreach ($notificationRoles as $notificationRole) {
-            $result = $this->emailApi->notifyUsersByRole( $notificationRole, $emailTemplate, $destination, $replyTo);
+          try {
+            foreach ($notificationRoles as $notificationRole) {
+              $result = $this->emailApi->notifyUsersByRole( $notificationRole, $emailTemplate, $destination, $replyTo);
 
-            if ($result) {
-              $userRolesSuccess[$notificationRole] = $userRoles[$notificationRole];
+              if ($result) {
+                $userRolesSuccess[$notificationRole] = $userRolesList[$notificationRole];
+              }
+              else {
+                $userRolesFailed[$notificationRole] = $userRolesList[$notificationRole];
+              }
             }
-            else {
-              $userRolesFailed[$notificationRole] = $userRoles[$notificationRole];
-            }
+          }
+          catch (\Exception $e) {
+            $this->messenger()->addError($this->t(
+              "The emails failed to send. Please contact the administrator. \n Debugging info: %json", 
+              ['%json' => htmlspecialchars(json_encode($e->getMessage()))],
+            ));
           }
   
           if (!empty($userRolesSuccess)) {
-            $this->messenger()->addMessage($this->t(
+            $this->messenger()->addMessage($this->formatPlural(
+              count($userRolesSuccess),
+              'Users with the role %roles have been notified.', 
               'Users with any of the roles %roles have been notified.', 
               ['%roles' => implode(', ', $userRolesSuccess)]
             ));
           }
   
           if (!empty($userRolesFailed)) {
-            $this->messenger()->addError($this->t(
-              'Users with the roles %roles could not be notified. Please contact the administrator.', 
+            $this->messenger()->addError($this->formatPlural(
+              count($userRolesFailed),
+              'At least one user with the role %roles could not be notified. Please contact the administrator.', 
+              'At least one user with the roles %roles could not be notified. Please contact the administrator.', 
               ['%roles' => implode(', ', $userRolesFailed)]
             ));
           }
@@ -200,9 +213,13 @@ class EmailManualSendByRole extends EmailSettings  {
         break;
 
       case 'submit__save_draft':
+        // Parent submission already handles this case
         break;
 
       default:
+        $this->messenger()->addWarning($this->t(
+          'There was an problem handling processing the form.'
+        ));
         break;
     }
   }
@@ -219,7 +236,7 @@ class EmailManualSendByRole extends EmailSettings  {
    * Return an array of user roles keyed by machine name
    */
   public function getUserRoles() {
-    if (is_null($this->userRoles)) {
+    if (is_null($this->userRolesList)) {
       $userRoleStorage = $this->entityTypeManager->getStorage('user_role');
 
       $userList = array_map(function ($userRole) {
@@ -235,10 +252,10 @@ class EmailManualSendByRole extends EmailSettings  {
         '@defaultText' => $userList['authenticated'],
       ]);
       
-      $this->userRoles = $userList;
+      $this->userRolesList = $userList;
     }
 
-    return $this->userRoles;
+    return $this->userRolesList;
   }
   
 }
