@@ -98,7 +98,7 @@ class EmailSettings extends ConfigFormBase  {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state, $type = null) {
+  public function buildForm(array $form, FormStateInterface $form_state, $type = NULL) {
     
     $config = $this->config($this->formConfig);
     
@@ -179,7 +179,7 @@ class EmailSettings extends ConfigFormBase  {
 
       $form['emails'][$definitionName]['destination'] = [
         '#type' => 'textfield',
-        '#title' => $this->t('Url to Redirect to'),
+        '#title' => $this->t('Url for Auto Login Link'),
         '#default_value' => $emailConfig['destination'] ?? '',
         '#field_prefix' => '/',
         '#description' => $this->t('e.g. node/23'),

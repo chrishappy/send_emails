@@ -1,11 +1,15 @@
 # Send emails by user role
+# email_to_send: the send_email template
+# role: the mahcine name of a user role (excluding anonymous, authenicated, and administrator)
 send_emails_manual.send_by_role:  
-  path: '/admin/config/send_emails/manual/{email_to_send}'
+  path: '/admin/config/send_emails/manual/{email_to_send}/{role}'
   defaults:  
     _form: '\Drupal\send_emails_manual\Form\EmailManualSendByRole'  
-    _title: 'Manually Send Emails to User of Role'  
+    _title: 'Manually Send Emails to User of Role'
+    role: null
   requirements:  
     _permission: 'manual send_emails by role'
     email_to_send: '^\w+$'
+    role: '^\w*$'
   options:  
     _admin_route: TRUE
