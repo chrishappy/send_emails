@@ -1,5 +1,5 @@
 name: Send Emails
-description: 'Send custom emails'
+description: 'Programmically send emails that can be managed using a UI'
 package: Other
 
 type: module

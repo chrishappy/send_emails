@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- * Contains \Drupal\send_emails\Form\MinimalEmailSettings. 
+ * Contains \Drupal\send_emails\Form\EmailManualSendByRole. 
  */
 
 namespace Drupal\send_emails_manual\Form;
