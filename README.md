@@ -13,7 +13,7 @@ You can also include custom TWIG variables using:
 ```php
 $autoLoginLinkUrl = ''; // If an empty string, will use the "Url for Auto Login Link" in the User Interface
 $replyToEmail = ''; // If an empty string, will use the "Reply To Email" in the User Interface
-$twigVariables = [];
+$twigVariables = []; // Additional Twig variables that can be accessed in the email template
 \Drupal::service('send_emails.mail')->notifyUser($user, $emailTemplate, $autoLoginLinkUrl, $replyToEmail, $twigVariables);
 ```
 
@@ -62,6 +62,10 @@ function YOURMODULE_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
 ```
 
 ## Documentation
+
+### Email Definitions
+
+**Email Fields**:
  - **Subject**: Supports TWIG variables (see below). The subject of the email.
  - **Reply To Email**: the email used when replying to the email (Drupal forces using the site's email as the from address)
  - **Body**: Supports TWIG variables (see below). The HTML body of the email.
@@ -74,4 +78,10 @@ function YOURMODULE_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
  - `{{ site_front }}`: url to the site's front page
  - `{{ misc.time-raw }}`: the UNIX timestamp
  - `{{ misc.userEntity }}`: the Drupal user entity (if it exists)
+
+### Other Links
+ - You can edit email definitions with only the subject and body by going to: `/admin/config/send_emails/emails/minimal/[email_template_machine_name]`
+ - You can manually send an email to users with a role by:
+  1. Enabling the "Send Emails - Manual" submodule
+  2. Going to: `/admin/config/send_emails/manual/[email_template_machine_name]`
 
