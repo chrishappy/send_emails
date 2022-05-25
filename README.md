@@ -2,7 +2,11 @@
 
 **Requires developing experience**
 
-Provides a UI to create & update emails. Provides a service to send the emails:
+Have you ever wanted to send users an email, but didn't want to use Rules?
+
+And wouldn't it be nice to have a user interface to be able to edit the said email? A user interface you could show non-technical users, instead of you updating it all the time?
+
+Introducting **Send Emails**, a light-weight module that provides a UI to create & update emails and a service to send the emails:
 
 ```php
 \Drupal::service('send_emails.mail')->notifyUsersByRole( $notificationRole, $emailTemplate);
