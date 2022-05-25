@@ -2,14 +2,41 @@
 
 **Requires developing experience**
 
-Provides a UI to create & update emails. Provides a service to send the emails.
+Provides a UI to create & update emails. Provides a service to send the emails:
 
-Here's how I use it in a custom module
-
+```php
+\Drupal::service('send_emails.mail')->notifyUsersByRole( $notificationRole, $emailTemplate);
 ```
-function custom_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
+
+You can also include custom TWIG variables using:
+
+```php
+$autoLoginLinkUrl = ''; // If an empty string, will use the "Url for Auto Login Link" in the User Interface
+$replyToEmail = ''; // If an empty string, will use the "Reply To Email" in the User Interface
+$twigVariables = [];
+\Drupal::service('send_emails.mail')->notifyUser($user, $emailTemplate, $autoLoginLinkUrl, $replyToEmail, $twigVariables);
+```
+
+See `./src/EmailApi.php` for more functions and documentation
+
+## Example
+
+Here's how I use it in a custom module:
+
+1. Install the module using the normal process (see [documentation](https://www.drupal.org/docs/extending-drupal/installing-modules#s-step-2-enable-the-module))
+2. Create a new email 
+  1. Go to `Configuation > Send Emails Configuation`: `/admin/config/send_emails/emails#edit-emails-definitions`
+  2. Define a new email using: <br>
+     `director_private_notes | Send an email when a node "director_agendas" is created or updated and the "field_send_emails_notify" checkbox is checked`
+  3. Click "Save"
+  4. The page should now have a new email that you can edit
+3. Add the below code to a custom module
+4. Flush the caches
+
+```php
+function YOURMODULE_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
   switch ($entity->bundle()) {
-    case 'prvtpgs':
+    case 'director_agendas':
       $notificationRole = 'testing';
       $emailTemplate = 'director_private_notes';
       
@@ -23,7 +50,6 @@ function custom_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
         
           $entity->set('field_send_emails_last_sent', 'Sent ' . $lastNotificationTime);
 
-
           \Drupal::messenger()->addMessage(
               t('%role have been notified', 
               ['%role' => ucfirst($notificationRole)])
@@ -35,10 +61,17 @@ function custom_node_presave(Drupal\Core\Entity\EntityInterface $entity) {
 }
 ```
 
- 1. Go to Configuation > Send Emails Configuation
- 2. Define an email by putting in a machine safe string
- 3. Click save()
- 4. Edit your new email definition
- 5. Send your email using `\Drupal::service('send_emails.mail')->notifyUsersByRole( $notificationRole, $emailTemplate);`
- 
- See `./src/EmailApi.php` for more functions
+## Documentation
+ - **Subject**: Supports TWIG variables (see below). The subject of the email.
+ - **Reply To Email**: the email used when replying to the email (Drupal forces using the site's email as the from address)
+ - **Body**: Supports TWIG variables (see below). The HTML body of the email.
+ - **Url for Auto Login Link**: the url used in to the `{{ auto_login_link }}` TWIG variable. Allows the user to access the url wile being automatically logged in.
+
+**TWIG Variables**:
+ - `{{ name }}` (e.g. username): the username of the user the email is being sent to or the name provided
+ - `{{ auto_login_link }}`: a URL link string that automatically logs in the user
+ - `{{ site_name }}`: the name of the site (defined in Basic Settings)
+ - `{{ site_front }}`: url to the site's front page
+ - `{{ misc.time-raw }}`: the UNIX timestamp
+ - `{{ misc.userEntity }}`: the Drupal user entity (if it exists)
+
